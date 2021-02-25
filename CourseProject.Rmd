@@ -1,0 +1,158 @@
+---
+title: "Coursera Practical Machine Learning - Final Project"
+author: "Ivan Avalos"
+date: "24/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction 
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website 
+
+The goal of the project is to predict the manner in which they did the exercise. Therefore, We train 3 models: **Random Forest**, **Gradient Boosted Trees**, **Support Vector Machine** using k-folds cross validation on the training set. We then predict using a validation set randomly selected from the training csv data to obtain the accuracy and out of sample error rate. Based on those numbers, we decide on the best model, and use it to predict 20 cases using the test csv set. 
+
+
+### Data Loading and Processing
+
+Loading the libraries
+
+```{r loadLibraries, warning=FALSE, message=FALSE}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(kernlab)
+library(rattle)
+library(corrplot)
+library(xtable)
+set.seed(834)
+```
+
+Loading the dataset
+
+```{r loadDataSet}
+dataTrain <- read.csv("./data/pml-training.csv")
+dataTest <- read.csv("./data/pml-testing.csv")
+```
+
+```{r dimensions1}
+dim(dataTrain)
+dim(dataTest)
+```
+
+The training dataset contains 160 variables and 19622 observations. And 20 observation for data test. 
+
+We proceed to clean the data for the training data. Following the next two task:
+
+1. Remove N/A variables
+
+2. Remove near zero variance variables
+
+3. Remove the first seven variables 
+
+The testing dataset will be left alone, and used for the final quiz test cases.
+
+```{r cleanData}
+dataTrain <- dataTrain[, colSums(is.na(dataTrain)) == 0]
+dataTrain <- dataTrain[,-c(1:7)]
+dataTrain <- dataTrain[,-nearZeroVar(dataTrain)]
+```
+
+```{r dimension2}
+dim(dataTrain)
+```
+
+We compressed 160 variables to 53 variables (low rank). We now split the training data into a validation and training set.
+
+```{r splitData}
+indexTrain <- createDataPartition(y=dataTrain$classe, p=0.7, list=F)
+train <- dataTrain[indexTrain,]
+valid <- dataTrain[-indexTrain,]
+```
+
+We make an analysis of correlation among predictor variables to evaluate the enough independent between predictors.
+
+```{r coorPlot}
+corMatrix <- cor(train[, -53]) # We take the predictor variables
+corrplot(corMatrix, order = "FPC", method = "color", type = "lower", 
+         tl.cex = 0.8, tl.col = rgb(0, 0, 0))
+```
+
+The darker color the more correlated are the variables. We set a threshold of 0.85 to obtain the most correlated variables. 
+
+```{r corVariables}
+CorrelatedVariables = findCorrelation(corMatrix, cutoff=0.85)
+names(train)[CorrelatedVariables]
+```
+
+we get nine correlated variables. We remark this analysis whether the model needs to improve its performance. If it is, we might do a **pca** over this variables.
+
+### Training the Models
+
+We will train three models: **Random Forest**, **Gradient Boosted Trees**, **Support Vector Machine**. We will take the model with the best accuracy and use it for the test dataset in order  to predict the 20 quiz. 
+
+To obtain generalization, we will train the models with a 3-fold cross validation.
+
+```{r setTrainControl}
+train_control <- trainControl(method="cv", number=3, verboseIter=F)
+```
+
+# a) Random Forest
+
+```{r trainRF, cache = TRUE}
+# Training the model
+train_rf <- train(classe~., data=train, method="rf", trControl = train_control, tuneLength = 5)
+
+# Test the model
+pred_values <- predict(train_rf, valid)
+cmrf <- confusionMatrix(pred_values, factor(valid$classe))
+cmrf
+```
+
+# b) Gradient Boosted Trees
+
+```{r trainGBT, cache = TRUE}
+# Training the model
+train_gbm <- train(classe~., data=train, method="gbm", trControl = train_control, tuneLength = 5, verbose = F)
+
+# Test the model
+pred_values <- predict(train_gbm, valid)
+cmgbm <- confusionMatrix(pred_values, factor(valid$classe))
+cmgbm
+```
+
+# c) Support Vector Machine using radial basis kernel
+
+```{r trainSVM, cache = TRUE}
+# Training the model
+train_svm <- train(classe~., data=train, method="svmRadial", trControl = train_control, tuneLength = 5, verbose = F)
+
+
+# Test the model
+pred_values <- predict(train_svm, valid)
+cmsvm <- confusionMatrix(pred_values, factor(valid$classe))
+cmsvm
+```
+
+### Conclutions
+
+```{r table1, echo=FALSE}
+acc <- data.frame(Accuracy = c(0.998,0.997,0.97), row.names = c("RF","GBM","SVM"))
+xt <- xtable(acc)
+
+print(xt, type = "html")
+```
+According to the accuracies of the models respectively (table above). There is not much difference of performance between Gradient Boosted Trees and Random Forest, comparing them with the Support Vector Machine. Therefore, we choose **Random Forest** model to perform the validation task. 
+
+
+
+
+
+
+
+
