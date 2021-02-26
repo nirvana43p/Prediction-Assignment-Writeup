@@ -35,7 +35,7 @@ set.seed(834)
 
 Loading the dataset
 
-```{r loadDataSet}
+```{r loadDataSet, cache = TRUE}
 dataTrain <- read.csv("./data/pml-training.csv")
 dataTest <- read.csv("./data/pml-testing.csv")
 ```
@@ -77,9 +77,9 @@ valid <- dataTrain[-indexTrain,]
 
 We make an analysis of correlation among predictor variables to evaluate the enough independent between predictors.
 
-```{r coorPlot}
+```{r coorPlot, out.width="50%"}
 corMatrix <- cor(train[, -53]) # We take the predictor variables
-corrplot(corMatrix, order = "FPC", method = "color", type = "lower", 
+corrplot(corMatrix, order = "FPC", method = "color", type = "upper", 
          tl.cex = 0.8, tl.col = rgb(0, 0, 0))
 ```
 
@@ -94,7 +94,7 @@ we get nine correlated variables. We remark this analysis whether the model need
 
 ### Training the Models
 
-We will train three models: **Random Forest**, **Gradient Boosted Trees**, **Support Vector Machine**. We will take the model with the best accuracy and use it for the test dataset in order  to predict the 20 quiz. 
+We will train three models: **Random Forest**, **Gradient Boosted Trees** and **Support Vector Machine**. We will take the model with the best accuracy and use it for the test dataset in order  to predict the 20 quiz. Also, we will use a tuneLength of 5 to choose the best hyperparameter. 
 
 To obtain generalization, we will train the models with a 3-fold cross validation.
 
@@ -141,12 +141,13 @@ cmsvm
 
 ### Conclutions
 
-```{r table1, echo=FALSE}
-acc <- data.frame(Accuracy = c(0.998,0.997,0.97), row.names = c("RF","GBM","SVM"))
-xt <- xtable(acc)
+```{r table1, echo=FALSE, results='asis' }
+acc <- data.frame(Accuracy = c(0.9944,0.9896,0.9703), row.names = c("RF","GBM","SVM"))
+xt <- xtable(acc, digits = c(0,4))
 
 print(xt, type = "html")
 ```
+
 According to the accuracies of the models respectively (table above). There is not much difference of performance between Gradient Boosted Trees and Random Forest, comparing them with the Support Vector Machine. Therefore, we choose **Random Forest** model to perform the validation task. 
 
 
